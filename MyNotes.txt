@@ -117,13 +117,153 @@ In chrome developer tools:
 #Using Augury to Dive into Angular Apps
 Augury - chrome extension - nice little tool to analayze the angular application & dependencies.
 
+### Property and Event binding
+Can be used on Html elements - native properties & events, Directives & components - custom properties & events
 
+By default all properties of elements are accessible inside of their own components, not from outside.
+we have to be explicit on which properties you want to expoose to the outside world.
 
+#custom property binding
 
+@Input() - is used to make a property bindable from outside
 
+If you have a property in child comp, to use it in parent we have to add @Input() to the property in the child 
+comp.ts file and import from @angular/core.
 
+Eg: child comp @Input() x:string      parent comp y="test"
+In parent comp html file,  [x]="y"
+
+#Assigning an alias to custom properties
+
+pass the name you want the property to have outside in the @Input arguments.
+
+Eg: child comp @Input('abc') x:string      parent comp y="test"
+In parent comp html file,  [abc]="y"
+
+#Binding to custom events
+
+@Output() - is used to make an event listnable from outside - because we are passing our own event out of the component.
+
+EventEmitter is an object in angular which allows to emit your own events.
+emit() is used to emit the event.
+
+If you have a custom event in child comp, to use it in parent we have to add @Output() to the property in the child 
+comp.ts file and import both Output and EventEmitter from @angular/core. 
+
+Eg: @Output() serverCreated = new EventEmitter<{serverName:string, serverContent:string}>();
  
+onAddServer() {
+this.serverCreated.emit({
+      serverName:this.newServerName, 
+      serverContent:this.newServerContent
+    }); }
+
+In app.comp.html <childComp (serverCreated)="onServerAdded($event)"></childComp>
+
+#Assigning an alias to custom events
+
+pass the name you want the eventto have outside in the @Output arguments.
+
+Eg: @Output('Screated') serverCreated = new EventEmitter<{serverName:string, serverContent:string}>();
+In app.comp.html <childComp (Screated)="onServerAdded($event)"></childComp>
+
+###View Encapsulation
+
+Style encapsulation is a behaviour enforced by angular, which is not a default behaviour of the browser. 
+The CSS styles defined in a comp will belong to just tht comp.
+
+Angular adds attributes to all elements and apply styles to the element with that attribute. 
+* Each comp will have diff unique attribute for all the elements.
+
+Angular emulates the shadow DOM (its a technology not supported by all browsers where each element has its own shadow dom behind it
+where then it could assign styles to each element).
+Its default behaviour of view encapsulation in angular.
+
+Angular encapsulates our styles. We can override the encapsulation by adding encapsulation to @Component in ts file
+import ViewEncapsulation from @angular/core in ts file
+
+encapsulation: ViewEncapsulation.(Native/None/Emulated)
+
+Emulated is the default
+
+None: we dont see the attributes being added to the elements in tht comp (* other comps will still have attributes)
+* Styles defined in tht comp will be applied globally (throughout the app)
+
+Native: uses the shadow DOM. Same as emulated but only in browsers which support it.
 
 
+### Using local references in templates
+
+To get the input value just at that point of time, we can use local reference (#) instead of two way data binding
+
+local reference can be placed on any html element and any where in the templates (but not in typescript code).
+This local reference will hold the reference to the whole html element with all its properties not the value.
+
+local references is used to get access to some elements in our template and then use it directly in the template or use the value in typescript
+
+Eg: in html file, <input type="text" class="form-control" #serverNameInput>  serverNameInput returns this input html element.
+In html : onAddBlueprint(serverNameInput)
+we can use it in html file directly : serverNameInput.value 
+or in typescript onAddBlueprint(nameInput: HTMLInputElement) {
+    this.bluprintCreated.emit({
+      serverName:nameInput.value }); }
+
+### Getting access to the template and DOM with @ViewChild 
+
+With local references we get the reference when we call that method but sometimes we want to get the access before we call that method.
+with @ViewChild we can fetch local references and get direct access to elements in our template.
+
+We can get access to the element directly from typescript code using @ViewChild. 
+
+Eg: In html file,  <input type="text" class="form-control" #serverContentInput>
+
+In ts file, @ViewChild('serverContentInput') serverContentInput: ElementRef;  import viewChild, ElementRef from @angular/core.
+viewChild is of type ElementRef, which is reference to tht element.
+ElementRef has a property called nativeElement which gives access to the underlying element.
+
+@ViewChild won't work without an argument. The argument is like a selector on how we want to select tht element
+-can pass as a string name of a local ref 
+-pass comp type(if we are using it in app comp, we can use @ViewChild(childComponent) to get access to first occurence of the child comp in app comp
+
+in typescript onAddBlueprint(nameInput: HTMLInputElement) {
+    this.bluprintCreated.emit({
+      serverName:nameInput.value 
+      serverContent: this.serverContentInput.nativeElement.value;
+
+}); }
+
+** we should not change the dom from typescript.
 
 
+### Projecting content into components with ng-content
+
+code in between opening n closing tag of ur own comp will be lost and will not be taken care by angular by default.
+To avoid this, add <ng-content></ng-content> in our comp where we want tht code to be displayed.
+
+ng-content is a directive that projects code in between opening n closing tag of ur own comp into the comp where it is placed.
+
+Nice feature to build reusable widgets like a tab widget where each tab has content cmng from other source and which we dont want to 
+pass always through property binding.
+
+For complex property binding logic we can use ng-content instead.
+
+### understanding the component life cycle
+
+If a new comp is created by angular
+
+1. ngOnChanges - executed multipe times
+called first when the comp is created and called after a bound input property changes (i.e. whenever properties with @Input recieves new values)	
+2. ngOnInit - called once the comp is initialized (ie once the obj is created)- will run after the constructor
+3. ngDoCheck - called during every change detection run (checks on every change eg: property change, click, timer fires)
+4. ngAfterContentInit - called after content(ng-content) has been projected into view
+5. ngAfterContentChecked - called everytime the projected content has been checked
+6. ngAfterViewInit - called after comp's view (and child views) has been initalized
+7. ngAfterViewChecked - called everytime the view (and child views) has been checked
+8. ngOnDestroy - called once the comp is about to be destroyed (eg: if *ngIf is false, removes the ele from DOM. ngOnDestroy is called before destroying)
+
+##seeing life cycle hooks in action
+
+implementing the life cycle hook interfaces is a good practice. Import all the life cycle hook interfaces from @angular/core
+* constructor is called first before ngOnInit 
+* ngOnChanges is called first before ngOnInit -
+the only hook tht recieves an argument 'changes' of type SimpleChanges (need to import from @angular/core)
