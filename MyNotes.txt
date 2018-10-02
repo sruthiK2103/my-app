@@ -120,6 +120,7 @@ Augury - chrome extension - nice little tool to analayze the angular application
 
 ### Property and Event binding
 Can be used on Html elements - native properties & events, Directives & components - custom properties & events
+<<<<<<< HEAD
 
 By default all properties of elements are accessible inside of their own components, not from outside.
 we have to be explicit on which properties you want to expoose to the outside world.
@@ -141,6 +142,27 @@ pass the name you want the property to have outside in the @Input arguments.
 Eg: child comp @Input('abc') x:string      parent comp y="test"
 In parent comp html file,  [abc]="y"
 
+=======
+
+By default all properties of elements are accessible inside of their own components, not from outside.
+we have to be explicit on which properties you want to expoose to the outside world.
+
+#custom property binding
+
+@Input() - is used to make a property bindable from outside
+
+If you have a property in child comp, to use it in parent we have to add @Input() to the property in the child 
+comp.ts file and import from @angular/core.
+
+Eg: child comp @Input() x:string      parent comp y="test"
+In parent comp html file,  [x]="y"
+
+#Assigning an alias to custom properties
+
+pass the name you want the property to have outside in the @Input arguments.
+
+Eg: child comp @Input('abc') x:string      parent comp y="test"
+In parent comp html file,  [abc]="y"
 #Binding to custom events
 
 @Output() - is used to make an event listnable from outside - because we are passing our own event out of the component.
@@ -249,6 +271,7 @@ pass always through property binding.
 For complex property binding logic we can use ng-content instead.
 
 ### understanding the component life cycle
+<<<<<<< HEAD
 
 If a new comp is created by angular
 
@@ -393,4 +416,24 @@ them into something else
 ##Building a structural directive
 create a directive using cli n g d unless - opp of ngIf
 Get the condition as in Input
+=======
 
+If a new comp is created by angular
+
+1. ngOnChanges - executed multipe times
+called first when the comp is created and called after a bound input property changes (i.e. whenever properties with @Input recieves new values)	
+2. ngOnInit - called once the comp is initialized (ie once the obj is created)- will run after the constructor
+3. ngDoCheck - called during every change detection run (checks on every change eg: property change, click, timer fires)
+4. ngAfterContentInit - called after content(ng-content) has been projected into view
+5. ngAfterContentChecked - called everytime the projected content has been checked
+6. ngAfterViewInit - called after comp's view (and child views) has been initalized
+7. ngAfterViewChecked - called everytime the view (and child views) has been checked
+8. ngOnDestroy - called once the comp is about to be destroyed (eg: if *ngIf is false, removes the ele from DOM. ngOnDestroy is called before destroying)
+
+##seeing life cycle hooks in action
+>>>>>>> f0b432df4f5d9ef898842cf3be3bc7611b3752ff
+
+implementing the life cycle hook interfaces is a good practice. Import all the life cycle hook interfaces from @angular/core
+* constructor is called first before ngOnInit 
+* ngOnChanges is called first before ngOnInit -
+the only hook tht recieves an argument 'changes' of type SimpleChanges (need to import from @angular/core)
