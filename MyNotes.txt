@@ -93,8 +93,9 @@ ngClass is used to add css class only when certain condition is true.
 
 eg: [ngStyle]="{'background-color': 'red'}" or [ngStyle]="{backgroundColor: 'red'}" or
 [ngStyle]="{backgroundColor: getColor()}" 
+[ngStyle]="{backgroundColor:even %2 !== 0? 'yellow': 'blue'}"
 [ngClass]="{className : condition}"  --Note: className with hypens should be used in ''
-
+eg: [ngClass]="{odd:odd %2 !== 0}"
 Both these work with property binding which takes javascript object.
 
 ##Creating a Model class
@@ -269,5 +270,127 @@ implementing the life cycle hook interfaces is a good practice. Import all the l
 * ngOnChanges is called first before ngOnInit -
 the only hook tht recieves an argument 'changes' of type SimpleChanges (need to import from @angular/core)
 
+-----come back to 73-76 lectures-----
+#### Directives Deep Dive
 
+Attribute Directives
+Look like a normal html attribute (possibly with data binding or event binding)
+only affect/change the element they are added to.
+ngClass ngStyle
+
+vs
+
+Structural Directives
+Look like a normal html attribute but having a leading * (for desugaring)
+Affect a whole area in the DOM (elements get added/removed)
+** we can't have more than one structural directive on an element. Using it will throw an error.
+*ngIf *ngFor
+
+##Creating a basic directive
+
+we can create a shared folder to create all directives
+
+Through angular-cli
+
+ng g d better-highlight or ng generate directive better-highlight
+
+Manually creation
+Create a folder in app folder for directive and create a file called [xyz].directive.ts
+
+Eg:
+
+import {Directive,ElementRef,OnInit} from '@angular/core';
+
+@Directive({  //to configure the directive we need this obj, one of it is selector
+selector:'appBasicHighlight' - element or '[appBasicHighlight]'  - attribute
+})
+export class BasicHighlightDirective implements OnInit{
+  //we can inject the element the directive sits on into this directive, can be done through constructor
+  constructor(private elementRef:ElementRef) {
+    }
+  ngOnInit(){
+    this.elementRef.nativeElement.style.backgroundColor = 'green';
+    //but this is not good practice to directly access the element
+  }
+}
+
+* to use this directive we need to inform angular about the directive
+in app.module.ts file declarations, add directive and import it.
+
+To use directive
+<p appBasicHighlight>style me</p>  //as the selector is attr, just use it as attr
+
+//directives doesn't have all life cycle hooks as components (view related hooks are not there).
+onInit and onDestroy are few that can be used on directives.
+
+##using a renderer to build a better directive
+we can use a renderer to get the element, its the better way to access DOM
+
+Angular is not limited to running in the browser, service workers are the enivorments where 
+we might not have DOM access. we might get an error in some circumstances if we directly access the DOM.
+
+so its a better practice to use the renderer and its methods to access DOM.
+* renderer type has changed from Rendererv2 to Renderer2 and few methods has been changed.
+
+eg: In directive file
+  constructor(private elRef:ElementRef, private renderer:Renderer2) { }
+  ngOnInit() {
+    this.renderer.setStyle(this.elRef.nativeElement,'background-color', 'blue');
+  }
+
+Renderer methods: https://angular.io/api/core/Renderer2
+
+##using host listeners to listen to host events
+
+if we need to react to any events on the element directive sits on, 
+use the decorator @HostListener and it to the method we want to execute (eg: mouseover, mouseleave).
+ this can be triggered when some event occurs, which can passed as a string argument to @HostListener
+
+ @HostListener takes the events supported by DOM element the directive sits on as the argument
+we can also recieve event data (eventData), we can also listen to custom events and get that data 
+eg: 
+@HostListener('mouseenter') mouseover(eventData:Event) {
+    this.renderer.setStyle(this.elRef.nativeElement,'background-color', 'blue');
+  }
+##using HostBinding to bind to Host properties
+
+other way to access the dom elements is through HostBinding. we can use either a renderer or this.
+we can bind to any element the directive is sitting on.
+First we need to bind @HostBinding to a property (eg: backgroundColor)
+@HostBinding takes a string argument which is property of the hosting element we want to bind
+eg:
+@HostBinding('style.backgroundColor') backgroundColor: string = 'transparent';
+@HostListener('mouseenter') mouseover(eventData:Event) {
+    this.backgroundColor = 'blue';
+  }
+
+##Binding to directive properties
+we would be able to set the properties/values in the directive dynamically instead of hard coding in the
+directive.
+ we can improve that by using custom property binding (as a side note custom event binding can also be used on directives)
+ @Input() defaultColor: string = 'transparent';
+ @Input() highligthColor: string = 'blue';
+
+ we can bind these from outside.
+ <p appBetterHighlight [defaultColor]="'yellow'" [highlightColor]="'red'">style me</p>
+
+we can put directive name in [], if we have an alias for a property as same name as directive name.
+eg: @Input('appBetterHighlight') highligthColor: string = 'blue';
+
+<p [appBetterHighlight]="'red'" [defaultColor]="'yellow'">style me</p>
+
+\\General thing about property binding
+if we are passing down a string, we can omit [] and ''.
+eg: [defaultColor]="'yellow'" can be written as defaultColor="yellow"
+
+##what happens behind the scenes on structural directives
+
+* is used to indicate that it is a structural directive. Behind the scenes angular transforms
+them into something else
+<div *ngIf="!onlyOdd">...</div> behind the scenes * is transformed to 
+<ng-template [ngIf]="onlyOdd">...</ng-template> 
+
+##Building a structural directive
+create a directive using cli n g d unless - opp of ngIf
+Get the condition as in Input
 
