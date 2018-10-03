@@ -414,5 +414,27 @@ them into something else
 
 ##Building a structural directive
 create a directive using cli n g d unless - opp of ngIf
-Get the condition as in Input
+Get the condition as in Input and bind to a property (*should be same as directive selector). Whenever the condition changes, we execute
+a method, to do that implement a method with 'set' keyword.
 
+This now is converted into a method but still is a property which is setter of a property (method) which gets
+executed whenever the property changes. It changes whenever the condition we pass changes.
+
+To display something, the directive we created will sit on ng-template, we can get access to the template and
+place where we want to render the directive. Both can be injected using TemplateRef<any> (what should we render) and
+viewContainerRef (where should we render).
+constructor(private templateRef:TemplateRef<any>, private vcRef:ViewContainerRef) { }
+
+viewContainerRef.
+creates a view in this view container and the view is templateRef.
+ this.vcRef.createEmbeddedView(this.templateRef);
+
+while using the directive we need to use * with the directive name otherwise have to use with ng-template  
+
+##Understanding ngSwitch - structural directive
+Used when there are lot of ngIf cases.
+eg:     <div [ngSwitch]="value">       //value is defined in .ts file as a variable.
+        <p *ngSwitchCase="5">value is 5</p>
+        <p *ngSwitchCase="10">value is 10</p>
+        <p *ngSwitchDefault>value is Default</p>
+      </div> 
