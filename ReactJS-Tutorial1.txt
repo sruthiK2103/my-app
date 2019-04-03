@@ -1,0 +1,281 @@
+## React - UI library
+## Advantages: Virtual DOM, reusable components, Facebook 
+
+## Dependencies react-dom@16.4.0 react@16.4.0
+
+## index.html
+
+<html>
+    <head>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div id="root"></div>  -- id is important
+        <script src="index.pack.js"></script>
+    </body>
+</html>
+
+## index.js
+
+** uses jsx - JSX is JavaScript syntax extension
+HTML in JS : this is imported from "react", so where ever we are using jsx we need to import React from "react"
+
+import React from "react"
+import ReactDOM from "react-dom"
+
+function MyInfo() {  -- functional component (name should be in camelcase with first letter as capital letter)
+  return (
+    <div>  
+      <h1>Bob Ziroll</h1>
+      <p>This is a paragraph about me...</p>
+      <ul>
+        <li>Thailand</li>
+        <li>Japan</li>
+        <li>Nordic Countries</li>
+      </ul>
+    </div>
+  )
+}
+//jsx returns only one element, so everything should be wrapped as one element.
+
+//ReactDOM.render(what we want to render, where we want to render)
+
+ReactDOM.render(<MyInfo />, document.getElementById("root"))
+
+// <MyInfo />  - creating an instance of function MyInfo - jsx syntax to call function MyInfo
+
+## components
+As components are reusable, create a components and folder and add all the components.
+
+ create a component MyInfo.js in components folder  -- react comp name starts with Capital letter
+
+import React from "react"  --its important
+
+function MyInfo() {
+  return (
+    <div>
+      <h1>Sruthi</h1>
+      <p>This is a paragraph about me...</p>
+      <ul>
+        <li>Paris</li>
+        <li>Italy</li>
+        <li>London</li>
+      </ul>
+    </div>
+  )
+}
+export default MyInfo -- to use it in index.js file
+
+in index.js, remove MyInfo code and add import path of MyInfo
+
+import MyInfo from "./components/MyInfo"
+
+##Parent and child components
+
+As the application grows larger, we can restructure our app to have a main comp which calls other components
+
+create a comp - App.js
+
+import React from "react"
+import Header from "./Header"
+import MainContent from "./MainContent"
+import Footer from "./Footer"
+
+function App() {
+    return (
+        <div>
+            <Header />
+            <MainContent /> //these are separate components that are imported into App comp
+            <Footer />
+        </div>
+    )
+}
+
+export default App -- its imp to use it in other comps
+
+##Styling react with CSS classes
+
+We use 'className' attribute instead of class in JSx to style react elements (html elements)
+
+** so we can use className on only react elements but not on our own comps
+
+eg: <header className="navbar">This is the header</header>
+
+in style.css file
+
+body {
+    margin: 0;
+}
+
+.navbar {
+    height: 100px;
+    background-color: #333;
+    color: whitesmoke;
+    margin-bottom: 15px;
+    text-align: center;
+    font-size: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+##Some Caveats
+
+- semi colons are not mandatory at the end of the statements
+- using arrow functions : when we are using anonymus function or writing class methods
+  const App = () => <h1>Hello world!</h1>
+
+##JSx to JS and back
+
+We have to use {} to write JS code in JSx
+
+eg:
+
+function App() {
+  const firstName = "Bob"
+  const lastName = "Ziroll"
+  
+  return (
+    <h1>Hello {firstName + " " + lastName}!</h1>  //using JS in JSx
+    <h1>Hello {`${firstName} ${lastName}`}!</h1>  //ES6 way of writing 
+  )
+}
+
+eg: Displaying greeting message depending on the time of the display
+
+function App() {
+  const date = new Date()
+  const hours = date.getHours()
+  const styles = {
+    fontSize: 30
+  }
+  let timeOfDay
+  
+  if (hours < 12) {
+    timeOfDay = "morning"
+    styles.color = "#8914A3"
+  } else if (hours >= 12 && hours < 17) {
+    timeOfDay = "afternoon"
+    styles.color = "#04756F"
+  } else {
+    timeOfDay = "night"
+    styles.color = "#D90000"
+  }
+  
+  return (
+    <h1 style={styles}>Good {timeOfDay}!</h1>
+  )
+}
+
+## Inline styles with Style Property
+
+We can use Style property to dynamically set styles using JS.
+Style property expects a JS object, so to make it look cleaner we can create a variable with styles.
+
+eg: const styles = {
+    color: "#FF8C00", 
+    backgroundColor: "#FF2D00",
+    fontSize: 200
+  } //these should be added according to JS syntax (i.e. it should be backgroundColor not background-color )
+  //as these are in js, we cannot use styles like pseudo (hover) in here
+  <h1 style={styles}>Good {timeOfDay}!</h1>
+ (or) <h1 style={{color: "red"}}>Good {timeOfDay}!</h1> - converting jsx to js outer {} and inner {} is representing js obj
+##Props
+props is an object that has properties or the name of the prop that we pass in a component
+
+eg: ContactCard comp
+
+import React from "react"
+
+function ContactCard(props) { //can be any name but props is common name
+    return (
+        <div className="contact-card">
+            <img src={props.contact.imgUrl}/>
+            <h3>{props.contact.name}</h3>
+            <p>Phone: {props.contact.phone}</p>
+            <p>Email: {props.contact.email}</p>
+        </div>
+    )
+}
+export default ContactCard
+
+App.js comp
+
+import React from "react"
+import ContactCard from "./ContactCard"
+
+function App() {
+    return (
+        <div className="contacts">
+            <ContactCard //--we usually get this data from http call to an api that returns json file as response
+                contact={{name: "Mr. Whiskerson", imgUrl: "http://placekitten.com/300/200", phone: "(212) 555-1234", email: "mr.whiskaz@catnap.meow"}}
+            />
+            
+            <ContactCard 
+                contact={{name: "Fluffykins", imgUrl: "http://placekitten.com/400/200", phone: "(212) 555-2345", email: "fluff@me.com"}}
+            />
+        </div>
+    )
+}
+
+export default App
+
+--if we are passing props as name: "Mr. Whiskerson", imgUrl: "http://placekitten.com/300/200" in App
+we have to use below code in ContactCard
+            <img src={props.imgUrl}/>
+            <h3>{props.name}</h3>
+
+##Props and styling practice
+
+eg: Joke.js comp
+
+import React from "react"
+
+function Joke(props) {
+    return (
+        <div>
+            <h3 style={{display: !props.question && "none"}}>Question: {props.question}</h3>
+            <h3 style={{color: !props.question && "#888888"}}>Answer: {props.punchLine}</h3>
+            <hr/>
+        </div>
+    )
+}
+
+export default Joke
+
+- App.js comp
+
+import React from "react"
+
+import Joke from "./Joke"
+
+function App() {
+    return (
+        <div>
+            <Joke punchLine="It’s hard to explain puns to kleptomaniacs because they always take things literally." />           
+            <Joke 
+                question="What's the best thing about Switzerland?" 
+                punchLine="I don't know, but the flag is a big plus!"
+            />
+        </div>
+    )
+}
+
+export default App
+
+If there is no question for a joke, we can use inline style to not display it
+<h3 style={{display: props.question ? "block" : "none"}}>Question: {props.question}</h3>
+
+##Mapping components
+
+Higher order methods -map, filter, reduce
+
+refer
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/every
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/some
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/findindex

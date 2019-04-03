@@ -2927,5 +2927,19 @@ in forRoot pass second argument which takes a js object preloadingStrategy
  In network tab, we can check chunk.js file gets preloaded
 
 
+ ###Deploying an Angular App
+
+ ##Deployment Steps & Things to keep in mind
+ ..Build our app for production
+ ..consider AOT compilation
+ (ng build --prod --aot)
+ ..set the correct <base> element
+ For example.com/my-app, we should have <base href="/myapp">
+ ..make sure our server always returns index.html
+ Routes are registered in angular app, so the server wont know our routes. Return index.html incase of 404 errors.
+
+##Deploying to AWS S3
+
+
 
 
