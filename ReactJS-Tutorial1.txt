@@ -279,3 +279,250 @@ refer
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/some
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/findindex
+
+--create jokesData.js
+
+const jokesData = [
+    {
+        id: 1,
+        punchLine: "It’s hard to explain puns to kleptomaniacs because they always take things literally."
+    },
+    {
+        id: 2,
+        question: "What's the best thing about Switzerland?",
+        punchLine: "I don't know, but the flag is a big plus!"
+    }
+]
+export default jokesData
+
+--Joke.js
+
+import React from "react"
+
+function Joke(props) {
+    return (
+        <div>
+            <h3 style={{display: !props.question && "none"}}>Question: {props.question}</h3>
+            <h3 style={{color: !props.question && "#888888"}}>Answer: {props.punchLine}</h3>
+            (or)
+             <h3>Question: {props.joke.question}</h3>
+              <h3>Answer: {props.joke.punchLine}</h3>
+            <hr/>
+        </div>
+    )
+}
+
+export default Joke
+
+--App.js
+
+import React from "react"
+
+import Joke from "./Joke"
+import jokesData from "./jokesData"
+
+function App() {
+    const jokeComponents = jokesData.map(joke => <Joke key={joke.id} question={joke.question} punchLine={joke.punchLine} />)
+    (or)
+    const jokeComponents = jokesData.map(item => <Joke key={item.id} joke={item} />)
+    return (
+        <div>
+            {jokeComponents}            
+        </div>
+    )
+}
+
+export default App
+
+--we have to add key prop which is unique when using map or iterating over an array. Usually it comes from service we are calling.
+
+Eg: {props.product.price.toLocaleString("en-US", { style: "currency", currency: "USD" })} -- to display currency in USD
+
+##Class based components
+
+Eg: App.js
+
+import React from "react"
+
+class App extends React.Component { 
+    
+    yourMethodHere() {
+        
+    }
+    
+    render() { -- ** wrap return in render for showing anything on the page - write inside render before return
+       const x = this.yourMethodHere()
+        return (
+            <div>
+                <h1>{this.props.whatever}</h1> --in class components we have to use this.props
+            </div>
+        )
+    }
+}
+
+export default App
+
+--Eg with 3 components in index.js
+
+import React, {Component} from "react"
+import ReactDOM from "react-dom"
+
+// #1
+class App extends React.Component {
+    render() {
+        return (
+            <div>
+                <Header username="sruthi"/>
+                <Greeting />
+            </div>
+        )    
+    }
+}
+
+// #2
+class Header extends React.Component {
+    render() {
+        return (
+            <header>
+                <p>Welcome, {this.props.username}!</p>
+            </header>
+        )    
+    }
+}
+
+// #3
+class Greeting extends Component {
+    render() {
+        const date = new Date()
+        const hours = date.getHours()
+        let timeOfDay
+        
+        if (hours < 12) {
+            timeOfDay = "morning"
+        } else if (hours >= 12 && hours < 17) {
+            timeOfDay = "afternoon"
+        } else {
+            timeOfDay = "night"
+        }
+        return (
+            <h1>Good {timeOfDay} to you, sir or madam!</h1>
+        )
+    }
+}
+
+ReactDOM.render(<App />, document.getElementById("root"))
+
+##State
+
+State is the data that component maintains - i.e. state can be change its value
+where as in props - pass data from one comp to another comp cannot be changed by component receiving the props.
+** props are immutable
+
+* States can be added only in class based components
+
+We can initialize state in constructor. In constructor, we have to call super to get React.component methods (setState)
+
+Eg: App.js
+
+import React, {Component} from "react"
+class App extends Component { --we can extend Component and import it at top
+    constructor() {
+        super()
+        this.state = { --state is an obj
+            answer: "Yes", //initalizing state and we can change later
+            isLoggedIn: false
+        }
+    }
+    
+    render() {
+        let wordDisplay
+        if (this.state.isLoggedIn) {
+            wordDisplay = "in"
+        } else {
+            wordDisplay = "out"
+        }
+        return (
+            <div>
+                <h1>Is state important to know? {this.state.answer}</h1>
+                <ChildComponent answer={this.state.answer}/> --passing the state to child components
+                 <h1>You are currently logged {wordDisplay}</h1>
+            </div>
+        )
+    }
+}
+
+export default App
+
+--when we change state using setState, it will be automatically updated everywhere even in the child comps.
+
+Note: if we use class App extends Component() { -paranthesis it will throw below error
+TypeError: Cannot set property 'props' of undefined (/node_modules/react/cjs/react.development.js:236)
+
+##Handling events 
+
+// https://reactjs.org/docs/events.html#supported-events
+
+we have to use JS events (camelcase names) in react
+
+eg: App.js
+
+import React from "react"
+
+function handleClick() {
+    console.log("I was clicked")
+}
+
+function App() {
+    return (
+        <div>
+            <img onMouseOver={() => console.log("Hovered!")} src="https://www.fillmurray.com/200/100"/>
+            <input type="checkbox" checked={props.item.completed} onChange={() => console.log("Changed!")} />
+            <br />
+            <br />
+            <button onClick={this.handleClick}>Click me</button> --onClick event
+        </div>
+    )
+}
+export default App
+
+##Changing state
+
+eg: App.js
+
+import React from "react"
+
+class App extends React.Component {
+    constructor() {
+        super()
+        this.state = {
+            count: 0
+        }
+        this.handleClick = this.handleClick.bind(this) //we have to bind the class method as it is using parent class setState method
+    }
+    
+    handleClick() {
+        this.setState(prevState => {
+            return {
+                count: prevState.count + 1
+            }
+        })
+    }
+    
+    render() {
+        return (
+            <div>
+                <h1>{this.state.count}</h1>
+                <button onClick={this.handleClick}>Change!</button>
+                <ChildComponent count={this.state.count}/>>
+            </div>
+        )
+    }
+}
+
+export default App
+
+--setState method can take an object literal which is new version of state we want it to be.
+i.e.  this.setState({ count: 1 })
+or if we care about previous state, we pass it a function which takes prevState as parameter and return obj literal that represents new value of state.
+
+whenever state changes, the child comp using that state render method will be called again and that comp will reflect the new version of props it's receiving 
