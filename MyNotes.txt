@@ -120,29 +120,6 @@ Augury - chrome extension - nice little tool to analayze the angular application
 
 ### Property and Event binding
 Can be used on Html elements - native properties & events, Directives & components - custom properties & events
-<<<<<<< HEAD
-
-By default all properties of elements are accessible inside of their own components, not from outside.
-we have to be explicit on which properties you want to expoose to the outside world.
-
-#custom property binding
-
-@Input() - is used to make a property bindable from outside
-
-If you have a property in child comp, to use it in parent we have to add @Input() to the property in the child 
-comp.ts file and import from @angular/core.
-
-Eg: child comp @Input() x:string      parent comp y="test"
-In parent comp html file,  [x]="y"
-
-#Assigning an alias to custom properties
-
-pass the name you want the property to have outside in the @Input arguments.
-
-Eg: child comp @Input('abc') x:string      parent comp y="test"
-In parent comp html file,  [abc]="y"
-
-=======
 
 By default all properties of elements are accessible inside of their own components, not from outside.
 we have to be explicit on which properties you want to expoose to the outside world.
