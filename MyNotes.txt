@@ -2933,13 +2933,1067 @@ in forRoot pass second argument which takes a js object preloadingStrategy
  ..Build our app for production
  ..consider AOT compilation
  (ng build --prod --aot)
- ..set the correct <base> element
- For example.com/my-app, we should have <base href="/myapp">
+ ..set the correct <base> element --this is required by the angular router to work correctly.
+ For example.com/my-app, we should have <base href="/myapp"> 
  ..make sure our server always returns index.html
  Routes are registered in angular app, so the server wont know our routes. Return index.html incase of 404 errors.
 
+## S3 & Bucket Policies
+
+BEFORE you add the bucket policy, make sure you configure the Bucket Permissions
+
+public access settings - edit
+
+Make sure that all these boxes are UNCHECKED, otherwise public access (which we want!) will not be possible and you'll not even be able to set a bucket policy.
+
 ##Deploying to AWS S3
 
+Go to https://console.aws.amazon.com/s3/home and create a Bucket with unique name (recipe-book-deploy12)
+and continue next and set bucket permissions as above. Once created go to bucket properties and static website hosting
+
+Endpoint : http://recipe-book-deploy12.s3-website.us-east-2.amazonaws.com --is our domain
+
+-select 'use this bucket to host a website'
+
+index document: what should be the document that gets loaded whenever user visits our webpage - index.html
+error document: index.html --in case of 404 errors what file we are displaying
 
 
 
+-change permissions to read for making it publicly available, create a bucket policy.
+
+From the documentation, get the 'grant permissions for read only' and add it in bucket policy.
+
+* change example bucket name to our bucket name (here recipe-book-deploy12) - now bucket is configured.
+
+
+--Now we need to upload our content. To do that we need to build it first.
+
+ng build --prod --aot
+
+once build is done, we need to go to dist folder which has all the artifacts that we need to deploy to have our app run.
+(we can ignore all our other files)
+
+We need to check <base href="/"> in index.html --this is root domain
+if we want to run our app in "/my-app" folder we can set that by running
+
+ng build --prod --aot --base-href /my-app/
+
+Now upload all the files in dist to s3 - go to bucket overview and select upload.
+
+once everything is uploaded we can go to our end point and see if the app is working fine.
+
+### HTTP Client
+
+Introduced with angular 4.2 - adds few additional features than HTTP & introduced interceptors
+
+##Unlocking
+
+HTTP Client can be used if we need interceptors. Other than there are no problems with earlier HTTP service.
+
+in app.module.ts, imports change HttpModule to HttpClientModule and add import
+import { HttpClientModule } from '@angular/common/http';
+
+in service.ts change http to httpClient
+
+import { HttpClient } from '@angular/common/http';
+constructor(private httpClient: HttpClient)
+this.httpClient.put & this.httpClient.get
+
+** By default httpClient will automatically extracts the body of the response, so we can specify the type of response
+directly instead of extracting from body of the response (i.e. const recipes: Recipe[] = response.json();)
+Also we can tell httpClient what type of data we will be getting back. 
+
+eg: 
+  this.httpClient.get<Recipe[]>('https://ng-recipe-book-3adbb.firebaseio.com/recipes.json?auth=' + token)
+      .map(
+        (recipes) => {
+          for (let recipe of recipes) {
+            if (!recipe['ingredients']) {
+              recipe['ingredients'] = [];
+            }
+          }
+          return recipes;
+        }
+      )
+
+
+##Request configuration and response
+
+By default get response is in json format and observe:'body', but if it's not, we can set response type, headers, etc in the 
+options object - in get (2nd arg) and put (3rd arg) requests.
+
+this.httpClient.get('https://ng-recipe-book-3adbb.firebaseio.com/recipes.json?auth=' + token,
+    {observe: 'response', --it gives the full response as text(headers, status, body)
+    responseType: 'text'})
+
+we can make observe: 'body' -- that returns body of the response 
+
+Alternative responseType are blob - useful for downloading a file and arraybuffer to buffer some data
+
+##Requesting events
+
+Sometimes we might be interested in events other than response from http reqs, to set that pass
+{observe:'events'} in http req - by doing this we will get a response of HttpEvent type not response
+
+eg: in put req
+
+this.httpClient.put('https://ng-recipe-book-3adbb.firebaseio.com/recipes.json?auth=' + token, this.recipeService.getRecipes(),
+  {observe:'events'});
+  }
+
+in comp.ts
+import { HttpEvent } from '@angular/common/http';
+
+this.dataStorageService.storeRecipes()
+      .subscribe(
+        (response: HttpEvent<Object>) => {  --set HttpEvent
+          console.log(response);
+        }
+      );
+
+In the console, we can see diff type of response.
+
+type 0 - http sent event type
+type 4 - normal response (HttpResponse)
+
+we can check the type from HttpEventType - diff types are Sent, Response, User, DownloadProgress, UploadProgress
+
+import { HttpEvent, HttpEventType } from '@angular/common/http';
+
+(response: HttpEvent<Object>) => {
+          console.log(response.type === HttpEventType.Sent);  //returns true 
+        }
+
+we can use this, when req was sent and we are waiting for response.
+
+##Settings Headers
+
+import { HttpHeaders } from '@angular/common/http';
+
+We can set new headers while sending a req that httpclient can use, using headers obj in options
+
+ const headers = new HttpHeaders().set('Authorization', 'Bearer some token').append(..)
+    return this.httpClient.put('https://ng-recipe-book-3adbb.firebaseio.com/recipes.json?auth=' + token, this.recipeService.getRecipes(),
+  {observe:'body', headers: headers
+    });
+  }  --this is an use case to set authorization header while talking to an api (in firebase we are not setting authorization header)
+
+Note: this is like setting new headers and overriding the default headers
+ 
+ we can append new headers by chaining append() - this will append to existing headers
+
+ ##Http parameters
+
+ To make the req url shorter and just have end point, we can move all the query params to params in config options obj
+
+  const token = this.authService.getToken();
+    return this.httpClient.put('https://ng-recipe-book-3adbb.firebaseio.com/recipes.json', this.recipeService.getRecipes(),
+  {observe:'body', 
+  params: new HttpParams().set('auth', token) --
+  });
+  }
+
+  ## Progress
+
+  We can listen to the progress which req n res has made which is useful for uploading n downloading files but can be used for any req.
+
+  We need to create a new HttpRequest for this to work
+
+  import { HttpRequest } from '@angular/common/http';
+
+  storeRecipes() {
+  const token = this.authService.getToken();
+  const req = new HttpRequest('PUT','https://ng-recipe-book-3adbb.firebaseio.com/recipes.json',
+  this.recipeService.getRecipes(), {reportProgress:true,  params: new HttpParams().set('auth', token)})
+  
+  return this.httpClient.request(req); -- to send this req 
+  }
+ 
+  --this will give feedback about req n response, in console we can see 
+
+  object of type 0,1,3,4
+  type 1 with total and loaded (data)- upload progress event 
+  type 3 with total and loaded (data)- download progress event
+ 
+ Depending on the amount of data we will get diff events, total & loaded will not be equal all the time.
+
+ ** we can show a progress bar by dividing loaded/total and can get % loaded on UI.
+
+ ## Interceptors
+
+ If we want to do something with every req our app is sending, for eg setting query params with auth token or headers
+
+ instead of setting it for every req, we can keep it in a place which checks every outgoing reqs and manipulates it.
+ We can do it through interceptors. 
+
+ In shared folder create a file auth.interceptor.ts
+
+ import { HttpInterceptor, HttpRequest, HttpHandler, HttpEvent } from "@angular/common/http";
+import { Observable } from "rxjs/Rx";
+
+export class AuthInterceptor implements HttpInterceptor {
+
+    intercept(req:HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>>{
+        return next.handle(req);
+
+    }
+
+}
+
+ implement HttpInterceptor intercept method which takes HttpRequest and HttpHandler and returns an observable of HttpEvent
+HttpRequest<any> - put,get, etc  HttpEvent<any> - Sent, Response, etc
+ HttpHandler - obj tht gives special methods we can execute to let our req continue its journey
+ ** If we dont call this, our req wont leave the app
+
+To tell angular to use this, we need to provide it. As it is needed for whole app we can use in 
+core.module.ts adding below line in providers array 
+
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { AuthInterceptor } from '../shared/auth.interceptor';
+
+{provide: HTTP_INTERCEPTORS, useClass:AuthInterceptor, multi:true}
+
+multi: true will tell angular we can have multiple of these and we can register multiple interceptors by simply
+duplicating above line.
+
+Now with this, we have intercepted every req and if we return null in intercept method, we dont get any compile time error
+but it breaks the app and doesnt continue.
+
+## Modifying requests
+
+By default requests are immutable and to not to change the incoming reqs multiple times (using retry operation on observables we can retry reqs and 
+this will send the req through certain interceptor multiple times and if we edit one of the same req mutliple times it will break at one point)
+
+So we need to clone a req before we edit it. Using the cloned req we can read headers,params, etc but we cannot edit.
+
+the clone func allows to pass configuration obj so that clone req is configured differently 
+
+eg:
+
+@Injectable()
+export class AuthInterceptor implements HttpInterceptor {
+
+    constructor(private authService: AuthService){}
+
+    intercept(req:HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>>{
+        console.log('intercepted', req);
+        //const copiedReq = req.clone({headers: req.headers.set('', '')});
+        const copiedReq = req.clone({params: req.params.set('auth', this.authService.getToken())});
+        return next.handle(copiedReq);
+
+    }
+
+}
+Set the params and headers, etc of cloned obj from req and pass the copiedReq to handle.
+we can inject services into interceptors 
+
+
+## Modifying Requests in Interceptors ---Intercepting responses 
+
+create a interceptor in shared folder logging.interceptor.ts
+
+eg:
+
+import { HttpInterceptor, HttpRequest, HttpHandler, HttpEvent } from "@angular/common/http";
+import { Observable } from "rxjs";
+import 'rxjs/add/operator/do';
+
+export class LoggingInterceptor implements HttpInterceptor
+{
+ intercept(req:HttpRequest<any>, next:HttpHandler): Observable<HttpEvent<any>>{
+     return next.handle(req).do(
+         (event)=>{
+             console.log('logging interceptor', event);
+         }
+     )
+ }
+}
+
+do() operator allows us to execute some code on any data tht goes from the observable without consuming it.
+do is like an in between step
+
+(subscribe - consumes data)
+
+If we are using Rxjs 6+? and not using rxjs-compat, then use
+
+import {Observable} from 'rx/js';
+import {tap} from 'rxjs/operators';
+&
+next.handle(req).pipe(tap(...))  // do() was renamed to tap()
+
+Now provide the interceptor in core.module.ts providers
+
+   {provide: HTTP_INTERCEPTORS, useClass:AuthInterceptor, multi:true},
+    {provide: HTTP_INTERCEPTORS, useClass:LoggingInterceptor, multi:true}
+
+** Interceptors will execute in the order we setup in providers
+
+In the console we can see responses from both interceptors.
+We didnt change any req here but we were able to respond to anything  we get back as part of response, be that be sent event or the response itself.
+
+This is what we can do something after req has been sent or before getting response or before handling clonedReq
+
+## Useful Resources & Links
+Link to official HttpClient Documentation: https://angular.io/guide/http
+
+### Angular Universal
+
+Its a tool provided by angular which allows the angular app to pre-render on the fly on the server. It enables
+server side rendering
+
+When we inspect our app, we dont see much in the browser except <app-root> and script imports as angular is 
+client side framework and all our content will be rendered after the app has been bootstrapped which is done by script files.
+
+Using the Angular universal, the html we get back from the server is the pre-rendered snapshot of the page and once this runs in the
+browser, its a single page app again. 
+
+Setting up Angular Universal can be difficult and - also depending on the exact version of Angular you're using - there is more than one way of getting it to run.
+
+Also check the official docs in case you get stuck or encounter errors: https://angular.io/guide/universal
+
+## Getting started  with Angular Universal
+
+https://github.com/angular/angular-cli/wiki/stories-universal-rendering 
+
+## Working on App Module
+
+1.Install the dependencies for angular universal using cli
+npm install --save @angular/platform-server @nguniversal/module-map-ngfactory-loader ts-loader express
+
+2. In app.module.ts, change BrowserModule import to BrowserModule.withServerTransition({appId: 'my-app'})
+--appId can be any name of our choice.
+
+This will be used by angular universal to correctly transition from server side to client side (i.e. for eg fecthed data from a
+database will be sent to client side and making that state available in client ) 
+
+3. We have to create a server module app.server.Module.ts in app folder
+import {NgModule} from '@angular/core';
+import {ServerModule} from '@angular/platform-server';
+import {ModuleMapLoaderModule} from '@nguniversal/module-map-ngfactory-loader';
+
+import {AppModule} from './app.module';
+import {AppComponent} from './app.component';
+
+@NgModule({
+  imports: [
+    // The AppServerModule should import your AppModule followed
+    // by the ServerModule from @angular/platform-server.
+    AppModule,
+    ServerModule, --crucial module to render our app on server side
+    ModuleMapLoaderModule // <-- *Important* to have lazy-loaded routes work
+  ],
+  // Since the bootstrapped component is not inherited from your
+  // imported AppModule, it needs to be repeated here.
+  bootstrap: [AppComponent],
+})
+export class AppServerModule {}
+
+4. Entry file for our server side code main.server.ts, add it next to client side main.ts file and pass on the
+reference to the appserver module
+
+export { AppServerModule } from './app/app.server.module';
+
+##Adding a server side build workflow
+
+The default typescript config for converting typescript to js wont work for server side, so we need to adjust the config
+and make the app run on the server instead of browser
+
+take the tsconfig.app.json file and create a copy and rename to tsconfig.server.json file and we use NodeJs
+for server side rendering and change module to "module": "commonjs" and add after exclude array
+
+  "angularCompilerOptions": {
+    "entryModule": "app/app.server.module#AppServerModule"
+  }
+  
+  it compiles templates (html) to native js code and we need to specify the starting module
+  (i.e. path of app.server.module without ts extension and #Classname)
+5. In angular.json file architect property, add server command
+ "server": {
+    "builder": "@angular-devkit/build-angular:server", --builder suited for server side packages 
+    "options": {
+      "outputPath": "dist/your-project-name-server",
+      "main": "src/main.server.ts",
+      "tsConfig": "src/tsconfig.server.json"
+    }
+this server cmd will allow us to run the build process through the cli to take our ts server side config automatically 
+and then build our app for the server. 
+
+"outputPath": "dist/server", -- this is where we want to build our app to 
+
+for client side change "outputPath": "dist/browser" in 'build' cmd and run 
+ng build --prod  to build on client side, this creates dist/browser
+
+6. To test this, run
+
+ng run n5-complete-guide:server 
+
+n5-complete-guide is the name of the project (get it from angular.json projects obj)
+this will create a main.js file in dist/server - which is built bundle file for server side.
+
+## Adding a nodeJs server
+
+Adding a nodeJs express server to run our app
+
+create a server.ts file in our root prj folder and copy the content from 
+https://github.com/angular/angular-cli/wiki/stories-universal-rendering server.ts
+
+install express:  npm install --save express
+
+
+-- server.ts 
+
+// These are important and needed before anything else
+import 'zone.js/dist/zone-node';
+import 'reflect-metadata';
+
+import { renderModuleFactory } from '@angular/platform-server';
+import { enableProdMode } from '@angular/core';
+
+import * as express from 'express';
+import { join } from 'path'; //join multiple path segments and files names into long absolute path on the os
+import { readFileSync } from 'fs'; //used to load files and to load index.html in server side
+
+// Import module map for lazy loading
+import { provideModuleMap } from '@nguniversal/module-map-ngfactory-loader';
+
+// Faster server renders w/ Prod mode (dev mode never needed)
+enableProdMode();
+
+// Express server
+const app = express();
+
+const PORT = process.env.PORT || 4000;
+const DIST_FOLDER = join(process.cwd(), 'dist'); //gets the dist path from current directory
+
+// Our index.html we'll use as our template
+const template = readFileSync(join(DIST_FOLDER, 'browser', 'index.html')).toString();
+
+//get main.js from dist/server/main folder and leave this as require() since this file is built dynamically from webpack
+const {AppServerModuleNgFactory,LAZY_MODULE_MAP} = require('./dist/server/main');
+
+//setting the view engine for express
+app.engine('html', (_, options, callback) => {
+  renderModuleFactory(AppServerModuleNgFactory, {
+    // Our index.html
+    document: template,
+    url: options.req.url,
+    // DI so that we can get lazy-loading to work differently (since we need it to just instantly render it)
+    extraProviders: [
+      provideModuleMap(LAZY_MODULE_MAP)
+    ]
+  }).then(html => {
+    callback(null, html);
+  });
+});
+
+app.set('view engine', 'html');
+app.set('views', join(DIST_FOLDER, 'browser'));
+
+// Server static files from /browser
+app.get('*.*', express.static(join(DIST_FOLDER, 'browser')));
+
+// All regular routes use the Universal engine
+app.get('*', (req, res) => {
+  res.render(join(DIST_FOLDER, 'browser', 'index.html'), { req });
+});
+
+// Start up the Node server
+app.listen(PORT, () => {
+  console.log(`Node server listening on http://localhost:${PORT}`);
+});
+
+
+For nodejs to work, we need to compile this typescript to js - for this we use webpack the build tool which is also 
+used to compile client side ts code
+
+## Pre-rendering the app on server
+
+In the root folder create webpack.server.config.js file
+
+const path = require('path');
+const webpack = require('webpack');
+
+module.exports = {
+  mode: 'none',
+  entry: {
+    server: './server.ts',       //take server.ts file 
+  },
+  target: 'node',            //and build it for node
+  externals: [/(node_modules|main\..*\.js)/],     //be aware of node modules and include any dependencies needed by server.ts file
+  resolve: { extensions: ['.ts', '.js'] },
+  optimization: {
+    minimize: false
+  },
+  output: {
+    // Puts the output at the root of the dist folder
+    path: path.join(__dirname, 'dist'),    //output into dist folder
+    filename: '[name].js'           //keep the original file name which is server.js here
+  },
+  module: {
+    rules: [
+      { test: /\.ts$/, loader: 'ts-loader' },  // this does ts to js compilation
+      {
+        // Mark files inside `@angular/core` as using SystemJS style dynamic imports.
+        // Removing this will cause deprecation warnings to appear.
+        test: /(\\|\/)@angular(\\|\/)core(\\|\/).+\.js$/,
+        parser: { system: true },
+      },
+    ]
+  },
+  plugins: [
+    new webpack.ContextReplacementPlugin(
+      // fixes WARNING Critical dependency: the request of a dependency is an expression
+      /(.+)?angular(\\|\/)core(.+)?/,
+      path.join(__dirname, 'src'), // location of your src
+      {} // a map of your routes
+    ),
+    new webpack.ContextReplacementPlugin(
+      // fixes WARNING Critical dependency: the request of a dependency is an expression
+      /(.+)?express(\\|\/)(.+)?/,
+      path.join(__dirname, 'src'),
+      {}
+    )
+  ]
+}
+
+
+To the package.json scripts add webpack server - this uses webpack and takes webpack.server.config.js which will compile the server.ts file 
+
+"webpack:server": "webpack --config webpack.server.config.js --progress --colors"
+
+To run it, npm run webpack:server       and enter yes to install webpack-cli to run webpack build process.
+
+Now we can see server.js file in dist folder. To test this file we can run
+
+node dist/server.js 
+
+Now we got a node server listening on port 4000. 
+
+When we go to http://localhost:4000  and if we see any error (StaticInjectionError), we can fix it by going to 
+webpack.server.config.js file and add  
+mode: 'none',   // (in module.exports after target) and run npm run webpack:server again to rebuild
+and run  node dist/server.js and revisit http://localhost:4000 
+
+Now we can see our app running and when we inspect we can see the actual content and not just our app-root node.
+i.e. content of our page is pre-rendered from our server
+
+## Deploying angular universal
+
+We need to deploy our code(dist folder) to a server which is capable of running node js server because
+that server should execute server.js file (we cannot use aws server here)
+
+With that server, we just ship content of dist folder and configure it to run server.js file
+
+## Angular Universal Gotchas
+We typically use Angular Universal to pre-render Angular pages on the server. Once the app then runs on the client, it's a normal SPA again.
+
+Server-side rendering (SSR) can make sense because of SEO considerations (crawler should see what your users see) or because you want to deliver a finished page to your users (rather than creating the page in the browser).
+
+But that also has one important implication: You MUST NOT use any browser-only APIs like document.querySelector()  in your Angular code! 
+
+Simply because it will execute on the server and there, such APIs are not available.
+
+That's why, in this course, its recommended to use Angular features only: These features are safe to use because Angular will check if a certain API can be used before it uses it.
+
+### Angular Animations
+
+## Making Animations Work with Angular 4+
+With the release of Angular 4, the general syntax of Angular Animations didn't change. 
+
+However, the animation functions were moved into their own package and you now also need to add a special module to your imports[]  array in the AppModule.
+
+Specifically, the following adjustments are required:
+
+You probably need to install the new animations package (running the command never hurts): npm install --save @angular/animations 
+Add the BrowserAnimationsModule  to your imports[]  array in AppModule
+This Module needs to be imported from @angular/platform-browser/animations'  => import { BrowserAnimationsModule } from '@angular/platform-browser/animations'  (in the AppModule!)
+You then import trigger , state , style  etc from @angular/animations  instead of @angular/core 
+That's all!
+
+## Animations Triggers and state
+
+in app.comp.ts
+
+import { trigger, state, style } from '@angular/animations';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  animations:[
+    trigger('divState', [
+      state('normal', style({ //this state name should match the state value we defined as property
+        'background-color': 'red',  //similar to css style use - with single quotes or camel case syntax
+        transform: 'translateX(0)' //have it at default position not moving to left or right
+      })),
+
+      state('highlighted', style({
+        'background-color': 'blue',
+        transform: 'translateX(100px)' //to move to 100px right
+      })),
+
+      transition('normal => highlighted', animate(300)),
+      transition(' highlighted => normal', animate(800))
+
+    ]),
+     trigger('wildState', [
+      state('normal', style({
+        'background-color': 'red',
+        transform: 'translateX(0) scale(1)'
+      })),
+
+      state('highlighted', style({
+       'background-color': 'blue',
+        transform: 'translateX(100px) scale(1)'
+      })),
+      state('shrunken', style({
+        'background-color': 'green',
+         transform: 'translateX(0) scale(0.5)'
+       })),
+      transition('normal => highlighted', animate(300)),
+      transition('highlighted => normal', animate(800)),
+      transition('shrunken <=> *', animate(500))
+    ])
+  
+  ]
+})
+export class AppComponent {
+  state = 'normal';  //can be any name and value which we use in trigger
+}
+
+
+Add 'animations' array in which we define the animations that this template should be aware of.
+Each animation has 'trigger' which is a function, we tell angular to that we want to define a certain name which we place in template
+which should trigger a certain animation. The second arg in trigger defines the animations this trigger should toggle which is an array.
+
+In template, we add the trigger as <div style="width:100px; height:100px" [@divState]="state"> ...</div> 
+we need to bind this trigger to some property (state here) as it should run animation all the time.
+
+      <div style="width:100px; height:100px"
+      [@divState]="state"></div>
+      <br>
+      <div style="width:100px; height:100px"
+      [@wildState]="wildState"></div>
+    </div>
+
+Define states in trigger, to transition from one state to another.
+In state pass the name and style method that defines the style of that state.
+
+This sets the initial state of the animation.
+
+## Switching between statements
+
+in app.comp.html <button class="btn btn-primary" (click)="onAnimate()">Animate!</button>
+<button class="btn btn-primary"(click)="onShrink()">Shrink!</button>
+in app.comp.ts
+
+ onAnimate(){
+      this.state =='normal'? this.state='highlighted':this.state='normal';
+       this.wildState =='normal'? this.wildState='highlighted':this.wildState='normal';
+    }
+
+    onShrink(){
+      this.wildState = 'shrunken';
+    }
+
+
+## Transitions
+
+add transition function after the state, it allows us to describe how the animation should work from one state to another.
+
+Pass the no.of. milli secs it should take to animate from one state to another.
+
+in app.comp.ts
+
+import { trigger, state, style, transition, animate } from '@angular/animations';
+
+after state define transition
+
+      transition('normal => highlighted', animate(300)),
+      transition(' highlighted => normal', animate(800))
+
+
+to use the same animate time for both states, we can use
+
+ transition('normal <=> highlighted', animate(300))
+
+## Advanced Transitions
+
+transition('shrunken <=> *', animate(500))  //we can use wild card (*) instead of specifying the state when we have dynamic states in our app.
+
+## Transition phases
+
+we can control the styles during the transition too
+
+transition('shrunken <=> *', animate(500, style({
+        'border-radius':'50px'
+      })))
+
+we can pass the styles to animate method second arg, but this gives an ugly look and transition might not be smooth, so we can add styles
+in between transition too by passing an array which defines diff transition phases in that transition
+
+transition('shrunken <=> *', [
+        style({  //starting phase - if no animate method is used then its instantly applied
+          'background-color': 'orange'
+        }),
+        animate(1000, style({ //animate with style after 1000 milli secs - we can have multiple styles
+          borderRadius:'50px'
+        })),
+        animate(500) //animate without a style is transitioning to the end state which makes smooth transition
+      ]) 
+
+
+## The 'void' state
+
+To animate the elements in list/ ngIf where something new being added to the DOM, we can create a new trigger using void
+
+    trigger('list1', [
+      state('in', style({  //in state - final state- i.e. element is in the DOM and how it should look like when element is in there -- can be any name- dummy state
+        'background-color': 'red',
+        transform: 'translateX(0) scale(1)'
+      })),
+      transition('void => *', , [    //beginning state when the element is not added yet
+        style({      //when a new element is added to dom, it instantly gets this styling
+          opacity: 0,
+          transform: 'translateX(-100px)'
+        }),
+        animate(300)
+      ]),
+            transition('* => void', [ //to remove an element from the DOM
+        animate(300, style({   //from any state to final state
+          transform: 'translateX(100px)',
+          opacity:0
+        }))
+    ]) 
+
+
+If the element and state hasn't been added yet in the dom at the beginning or if the element is removed, we can use 'void' state which is a 
+reserved state name that cannot be overrided/used anywhere.
+
+In app.comp.html, <li [@list1] >..</li>   no need to bind it to anything as we dont care about entering state at the beginning.
+
+In app.comp.ts
+ onDelete(item) {
+      this.list.splice(this.list.indexOf(item), 1);
+    } 
+
+Note:The splice() method changes the contents of an array by removing or replacing existing elements and/or adding new elements in place.
+
+## Using keyframes for Animations
+
+Keyframes gives more detailed control over the individual steps during the animation process. Using key frames we can define different states and styles 
+within an animation. (i.e in an animation of 1 sec/1000 milli sec, after 500 milli sec have one state, after 200 milli sec have another, etc)
+
+Keyframes also takes an array with individual phases. Every element in it takes equally long (i.e. if animation is set for 1 sec, for 3 elements it takes 1/3rd of sec for each ele) 
+We can override it by using 'offset' property which tells at which time we have to be in that state. With this, transition starts fast but ends smoothly.
+
+eg:
+    trigger('list2', [
+      state('in', style({
+        opacity:1,
+        transform: 'translateX(0) scale(1)'
+      })),
+      transition('void => *', [
+        animate(1000, keyframes([
+          style({
+            transform: 'translateX(-100px)',
+            opacity: 0,
+            offset: 0
+          }),
+          style({
+            transform: 'translateX(-50px)',
+            opacity: 0.5,
+            offset: 0.3
+           
+          }),
+          style({
+            transform: 'translateX(-20px)',
+            opacity: 1,
+            offset: 0.8
+          }),
+          style({
+            transform: 'translateX(0px)',
+            opacity: 1,
+            offset: 1
+          }),
+        ]
+        ))
+      ]),
+      transition('* => void', [
+        animate(300, style({
+          transform: 'translateX(100px)',
+          opacity:0
+        }))
+      ])
+    ])
+
+Thus, with keyframes we can control precisely which state we want to have at which time during the transition over the time of animate function.
+We can have multiple animate functions in the transition array with multiple keyframes.
+
+## Grouping Transitions
+
+If we have diff animate methods, each one will wait until the previous one is finished.
+
+using group method we can group multiple animations which we want to perform synchronosuly with possibly different timings together to have them happen at the same time.
+eg:
+
+      transition('* => void', [
+        group([
+          animate(300, style({
+            color:'red'
+          })),
+          animate(800, style({
+            transform: 'translateX(100px)',
+            opacity:0
+          }))
+        ])
+      
+      ])
+## Using Animation callbacks
+
+There are couple of callbacks we can listen to, so that when an animation finishes we can execute our code.
+
+We can listen to events like start and done On a trigger.
+
+in app.comp.html
+
+ <div style="width:100px; height:100px"
+      [@divState]="state"
+      (@divState.start)="animationStarted($event)"
+      (@divState.done)="animationEnded($event)">
+     </div>
+
+in app.comp.ts
+
+ animationStarted(event){
+      console.log(event);
+    }
+
+    animationEnded(event){
+      console.log(event);
+    }
+
+  In console, we can see starting and ending animations fired. We can see starting state(fromState), to state and timing and data if it is part of animation.
+
+  ### Angular offline capabilities with service workers
+
+  To simulate that we got no internet connection, even though we are connected to internet, inspect and go to application tab - Service workers - check offline
+  
+  Using a service worker we can make our app available in offline.
+
+  ## Adding service workers
+
+  Our apps which has multiple pages or single page uses JS on single thread(attached to html pages). But JS and browser also offers us to run an additional thread
+  i.e. a web worker and special form of that is a service worker on another thread which is decoupled from our html pages.
+
+  So these can be run on background eg: on mobile phones and can do advanced things like push notifications.
+
+  --Refer progressive web applications
+
+  Service workers manages all pages of given scope (eg: all pages of domain)/single page in angular apps and listen to outgoing networks requests.
+  i.e. fetching assets of the website css, fonts, js or data from an api. 
+
+  Service workers catch these outgoing requests and cache the response in a special storage or return these cache responses back to our page
+  so that it works without internet connection.
+
+  Its seen as a proxy between the front end app and http req we are sending to the backend. It proxies the req (caches it) and does something with response.
+
+  ng add @angular/pwa  - will configure our existing prj to use angular service worker package add start with pre-configured service worker
+
+This adds <noscript> tag in index.html to give a warning if js is turned off and loads manfiest.json which is needed for launcher icon for our app.
+
+In app.module.ts
+
+import {ServiceWorkerModule} from '@angular/service-worker';
+
+in imports [] add ServiceWorkerModule.register('./ngsw-worker.js', {enabled: environment.production})
+
+ServiceWorkerModule registers a service worker - a proxy that catches outgoing reqs and does something with them.
+
+ngsw-worker.js will be generated during the build process and it will be in dist folder that holds our service worker that holds lot of functionality which we wont be writing on our own typically.
+
+enabled is added if we are building for production. In assets folder icons will be added for manifest.json file and in package.json file
+@angular/pwa package will be added which includes angular service worker package.
+
+ngsw-config.json will also be added where we configure the service worker tht will be generated.
+
+angular.json file which manages cli project is also adjusted with "serviceWorker": true for production build to cache certain resources and to ensure
+new build updates the resources with service workers
+
+run ng build --prod 
+this generates ngsw-worker.js in dist folder
+
+To see service worker in action, we need to have  a server. Install a light weight server using 
+npm install -g http-server     a package used to launch node based server which will host the content of the folder we command in
+
+cd dist/angular-pwa and run   http-server -p 8081   (-p is to set the port)
+
+now when we go to http://localhost:8081 we can see our angular app running
+So when we go to application tab - service workers - we can see ngsw-worker.js running (if you dont see reload and clear storage entirely)
+
+Now even in offline our app works and in network tab we can see the requests loaded from service worker (i.e hardcoded content in our app).
+
+Sometimes we might see a white page without our dynamic content if the api call is still going through or some other things in background.
+
+instead of white page we can set content in post.comp.html to display in case of error.
+
+If we change anything in our app (hard coding some content), service workers are aware of script rendering content to it changed and fetches the new version
+instead from cache.
+
+in ngsw config file we can configure how service worker behaves.
+
+## Caching assets for offline use
+
+in ngsw config file "index":"/index.html"  indicates what is the root page of our app when a cache at load
+it has assetGroups are configurations that define which assets should be cached and how they should be cached.
+"installMode": 'prefetch'  mode will allow service worker to fetch the assets in assetGroups before app loads and puts into cache even if its not needed at tht time.
+Alternative to 'prefetch' is 'lazy' - lazy will load the assets once you need them atleast once.
+Advantage of lazy is it wont occupy all the bandwidth at the beginning and the downside is if we need it for the first time it will not be there.
+
+"updatedMode":"prefetch" - allows service workers to prefetch the updated/new version of the app.
+
+"resources" has one key property "files" which has an array of files we want to cache.
+
+ngsw.json file
+
+{
+  "configVersion": 1,
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+   /*   "resources": {
+        "files":[
+            "/index.html"
+        ],
+       "urls": [
+         "https://fonts.googleapis.com/css?family=Oswald:300,700",  --holds the rules for the fonts
+         "https://fonts.gstatic.com/**" --get fonts from other servers
+    
+       ]
+
+       }
+      } */
+      "urls": [
+        "/favicon.ico",
+        "/index.html",
+        "/main.b4423d685d9d3bafdbf0.js",
+        "/polyfills.8a61012ef5f13d508214.js",
+        "/runtime.a66f828dca56eeb90e02.js",
+        "/styles.3ff695c00d717f2d2a11.css"
+      ],
+     "patterns": []
+    }
+  ]
+
+  ## Caching Dynamic assets & urls
+
+To prefetch data from api / data that change frequently we use dataGroups in ngsw.json file
+
+"dataGroups": [
+    {
+      "name": "posts",
+      "patterns": [
+        "https:\\/\\/jsonplaceholder\\.typicode\\.com\\/posts"   -- get the urls from our http get reqs
+      ],
+      "strategy": "freshness",
+      "maxSize": 5,
+      "maxAge": 21600000,
+      "timeoutMs": 10000,
+      "version": 1  -- version of the api
+     /* "cacheConfig": {   ---another obj where we can in detail configure how this data should be cached 
+         "maxSize": 5, ---how many responses we want to cache, limit it to 10 responses
+         "maxAge": "6h", --how old the data in cache be before we get rid of it and fetch new data -- can be set as "1d", "12h", "50m"
+         "timeout": 10s, --if we are waiting for response for 10sec already then we fall back to cache
+        "strategy": "freshness" ---which means always try to reach out to back at first and only use cache if offline, it takes timeout into account on how long to wait before it uses the cache.
+        //or  "strategy": "performance"  --tries to get something onto the screen asap and takes maxAge into account to reach to backend or just use cache
+      } */
+    }
+  ]
+  (or)
+   "dataGroups": [
+    {
+      "name": "posts",
+      "urls": [
+        "https://jsonplaceholder.typicode.com/posts"  -- get the urls from our http get reqs
+      ],
+      "cacheConfig": {
+        "maxSize": 5,
+        "maxAge": "6h",
+        "timeout": "10s",
+        "strategy": "freshness"
+      }
+    }
+  ]
+
+ build and start server - close the tab and reload the app as by default for a service worker to go active and do its job we need to reload.
+
+ reload it one more time to fetch data and go offline and test to see data in offline.
+
+## Further links & resources
+
+Official Angular Service Worker Docs: https://angular.io/guide/service-worker-intro
+Academind Resources on PWAs: https://academind.com/learn/progressive-web-apps
+
+### Unit testing in Angular Apps
+
+## Why unit tests?
+
+To check whether the component/pipe/service/input/injection..etc work as intended.
+Unit tests - guard against breaking changes, analyze code behaviour (expected and unexpected), reveal design mistakes
+
+## Analyzing the testing setup (as created by cli)
+
+in .comp.spec.ts file 
+
+import { TestBed, async } from '@angular/core/testing';    //imports TestBed & async testing utilites from testing package.
+describe the unit we want to test - AppComponent for example which is executed by the test runner(karma typically)
+
+we will have beforeEach which runs befores each test and 'it' describes each independent test.
+
+describe('App: CompleteGuideFinalWebpack', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({  --configure the testing module using test bed utility object
+      declarations: [
+        AppComponent //declare which comp we want in this testing env
+      ],
+    });
+  });
+
+  it('should create the app', async(() => {
+    let fixture = TestBed.createComponent(AppComponent); --create the comp
+    let app = fixture.debugElement.componentInstance; --create comp instance i.e. our app
+    expect(app).toBeTruthy(); --to be existent
+  }));
+
+  it(`should have as title 'app works!'`, async(() => {
+    let fixture = TestBed.createComponent(AppComponent);
+    let app = fixture.debugElement.componentInstance;
+    expect(app.title).toEqual('app works!');  --should be the title in comp.ts
+  }));
+
+  it('should render title in a h1 tag', async(() => {
+    let fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges(); --- to trigger change detection as it wont run automatically as it doesn't run in browser so that template gets rendered
+    let compiled = fixture.debugElement.nativeElement; --nativeElement gives access to our template
+    expect(compiled.querySelector('h1').textContent).toContain('app works!'); --on this compiled element we expect h1 element to contain textContent as specified.
+  }));
+});
+
+describe, it, expect, etc are jasmine testing package related not related to angular.
+
+## Running tests (with CLI)
+
+To run our tests, run 'ng test'. we already have test runner already built in
+This will show  tests that are successful and failed tests
+
+## Adding a component and some fitting tests
+
+
+## Testing Dependencies: Components & Services
+## Simulating Async tasks
+## Using 'fakeSync' and 'tick'
+## Isolated vs Non-Isolated tests
+## Further Resources & where to go next
